@@ -89,10 +89,58 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        #audio-unlock {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 100000;
+            background: rgba(0, 20, 60, 0.92);
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            cursor: pointer;
+            padding: 24px;
+        }
+        #audio-unlock h2 {
+            font-size: clamp(1.4rem, 4vw, 2rem);
+            margin-bottom: 12px;
+        }
+        #audio-unlock p {
+            opacity: 0.75;
+            font-size: 1rem;
+            max-width: 360px;
+            line-height: 1.5;
+        }
+        #audio-unlock .play-icon {
+            width: 72px;
+            height: 72px;
+            margin-bottom: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00ccff, #0066ff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 0 30px rgba(0, 150, 255, 0.5);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
     </style>
 </head>
 <body>
     <a id="back-hub" href="../../index.html">&larr; Hub</a>
+
+    <div id="audio-unlock">
+        <div class="play-icon">&#9654;</div>
+        <h2>탭하여 시작</h2>
+        <p>브라우저 정책상 클릭 후 음악이 재생됩니다</p>
+    </div>
 
     <div id="gameContainer"></div>
     <div id="loader">
@@ -108,7 +156,45 @@
 
     <script src="Build/UnityLoader.js"></script>
     <script>
-        var gameInstance = UnityLoader.instantiate("gameContainer", "Build/GeometryDashLite.json", {
+        var gameInstance;
+        var audioUnlocked = false;
+
+        function unlockAudio() {
+            if (audioUnlocked) return;
+            audioUnlocked = true;
+
+            var AC = window.AudioContext || window.webkitAudioContext;
+            if (AC) {
+                var ctx = new AC();
+                ctx.resume();
+            }
+
+            if (gameInstance && gameInstance.Module) {
+                var m = gameInstance.Module;
+                if (m.audioContext) m.audioContext.resume();
+                if (m.SDL_audioContext) m.SDL_audioContext.resume();
+                if (m.canvas) {
+                    m.canvas.focus();
+                    m.canvas.click();
+                }
+            }
+
+            var overlay = document.getElementById("audio-unlock");
+            if (overlay) overlay.style.display = "none";
+
+            clickOkButtons();
+        }
+
+        function clickOkButtons() {
+            var buttons = document.getElementsByTagName("button");
+            for (var i = 0; i < buttons.length; i++) {
+                if (buttons[i].innerHTML === "OK") {
+                    buttons[i].click();
+                }
+            }
+        }
+
+        gameInstance = UnityLoader.instantiate("gameContainer", "Build/GeometryDashLite.json", {
             onProgress: UnityProgress
         });
 
@@ -125,20 +211,21 @@
             if (progress === 1 && !gameInstance.removeTimeout) {
                 gameInstance.removeTimeout = setTimeout(function() {
                     loader.style.display = "none";
+                    var overlay = document.getElementById("audio-unlock");
+                    if (overlay) {
+                        overlay.style.display = "flex";
+                    }
                 }, 2000);
             }
         }
 
+        document.getElementById("audio-unlock").addEventListener("click", unlockAudio);
+        document.addEventListener("keydown", function(e) {
+            if (e.code === "Space" || e.code === "Enter") unlockAudio();
+        });
+        document.addEventListener("touchstart", unlockAudio, { passive: true });
+
         document.addEventListener("DOMContentLoaded", function() {
-            function clickOkButtons() {
-                var buttons = document.getElementsByTagName("button");
-                for (var i = 0; i < buttons.length; i++) {
-                    if (buttons[i].innerHTML === "OK") {
-                        buttons[i].click();
-                    }
-                }
-            }
-            clickOkButtons();
             setTimeout(clickOkButtons, 1000);
         });
     </script>
